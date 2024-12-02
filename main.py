@@ -9,6 +9,8 @@ from src.DataProviders.SbrOddsProvider import SbrOddsProvider
 from src.Predict import NN_Runner, XGBoost_Runner
 from src.Utils.Dictionaries import team_index_current
 from src.Utils.tools import create_todays_games_from_odds, get_json_data, to_data_frame, get_todays_games_json, create_todays_games
+from Email.send_plain_email import _send_plain_email
+
 
 todays_games_url = 'https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/2024/scores/00_todays_scores.json'
 data_url = 'https://stats.nba.com/stats/leaguedashteamstats?' \
@@ -87,6 +89,7 @@ def createTodaysGames(games, df, odds):
 
 def main():
     odds = None
+    email_content = []
     date = datetime.today().strftime("%Y-%m-%d")
     if args.date:
         date = args.date
@@ -103,8 +106,10 @@ def main():
             odds = None
         else:
             print(f"------------------{args.odds} odds data------------------")
+            email_content.append(f"------------------{args.odds} odds data------------------")
             for g in odds.keys():
                 home_team, away_team = g.split(":")
+                email_content.append(f"{away_team} ({odds[g][away_team]['money_line_odds']}) @ {home_team} ({odds[g][home_team]['money_line_odds']})")
                 print(f"{away_team} ({odds[g][away_team]['money_line_odds']}) @ {home_team} ({odds[g][home_team]['money_line_odds']})")
     else:
         data = get_todays_games_json(todays_games_url)
@@ -119,7 +124,7 @@ def main():
         print("-------------------------------------------------------")
     if args.xgb:
         print("---------------XGBoost Model Predictions---------------")
-        XGBoost_Runner.xgb_runner(data, todays_games_uo, frame_ml, games, home_team_odds, away_team_odds, args.kc)
+        email_content.append(XGBoost_Runner.xgb_runner(data, todays_games_uo, frame_ml, games, home_team_odds, away_team_odds, args.kc, email_content))
         print("-------------------------------------------------------")
     if args.A:
         print("---------------XGBoost Model Predictions---------------")
@@ -129,6 +134,13 @@ def main():
         print("------------Neural Network Model Predictions-----------")
         NN_Runner.nn_runner(data, todays_games_uo, frame_ml, games, home_team_odds, away_team_odds, args.kc)
         print("-------------------------------------------------------")
+    if args.email:
+        try:
+            _send_plain_email("\n".join(str(content) for content in email_content))
+        except Exception as e:
+            print(f"Error: {e}")
+            raise
+
 
 
 if __name__ == "__main__":
@@ -139,5 +151,6 @@ if __name__ == "__main__":
     parser.add_argument('-odds', help='Sportsbook to fetch from. (fanduel, draftkings, betmgm, pointsbet, caesars, wynn, bet_rivers_ny')
     parser.add_argument('-kc', action='store_true', help='Calculates percentage of bankroll to bet based on model edge')
     parser.add_argument('-date', help='Date to get data from')
+    parser.add_argument('-email', action='store_true', help='Send an email of the data')
     args = parser.parse_args()
     main()
