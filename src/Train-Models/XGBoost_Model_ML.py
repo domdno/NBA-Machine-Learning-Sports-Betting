@@ -1,4 +1,6 @@
 import sqlite3
+import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -7,7 +9,8 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-dataset = "dataset_2012-24_new"
+dataset = "dataset_2012-25_new"
+sys.path.insert(1, os.path.join(sys.path[0], '../..'))
 con = sqlite3.connect("../../Data/dataset.sqlite")
 data = pd.read_sql_query(f"select * from \"{dataset}\"", con, index_col="index")
 con.close()
